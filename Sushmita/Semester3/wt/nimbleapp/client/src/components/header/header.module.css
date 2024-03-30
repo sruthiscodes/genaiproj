@@ -1,0 +1,55 @@
+.header {
+  background: linear-gradient(90deg, #77C0F6 0%, #9C7FD6 84.9%);
+}
+
+.header a {
+  color: #ffffff;
+}
+
+.header a:hover {
+  background: rgb(160, 144, 216);
+  color: rgb(255, 255, 255);
+  cursor: pointer;
+}
+
+.container {
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+}
+
+
+.logo {
+  height: 70px;
+}
+
+.header ul {
+  display: flex;
+  list-style-type: none;
+  margin: 0;
+}
+
+.header ul a {
+  padding: 1rem;
+  display: inline-block;
+}
+
+.menu_container {
+  position: relative;
+}
+
+.menu {
+  position: absolute;
+  z-index: 2001;
+  background-color: rgb(185, 167, 220);
+  display: none;
+}
+
+.menu_container:hover .menu {
+  display: block;
+}
+
+.menu a {
+  width: 100%;
+  min-width: 8rem;
+}
