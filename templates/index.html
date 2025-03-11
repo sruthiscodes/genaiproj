@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Adventure Game</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #0f0f0f;
+            color: #f0f0f0;
+        }
+        #game-container {
+            border: 1px solid #444;
+            padding: 20px;
+            border-radius: 5px;
+            background-color: #1a1a1a;
+        }
+        #story-text {
+            min-height: 200px;
+            margin-bottom: 20px;
+            white-space: pre-wrap;
+        }
+        #choices-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        button {
+            padding: 8px 16px;
+            background-color: #333;
+            color: #f0f0f0;
+            border: 1px solid #555;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #444;
+        }
+        #setup-form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        input, select {
+            padding: 8px;
+            background-color: #222;
+            color: #f0f0f0;
+            border: 1px solid #444;
+            border-radius: 4px;
+        }
+        #health-bar {
+            height: 20px;
+            background-color: #222;
+            margin-bottom: 20px;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        #health-indicator {
+            height: 100%;
+            background-color: #ff3e3e;
+            transition: width 0.5s;
+        }
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>AI-Powered Adventure Game</h1>
+    
+    <div id="setup-panel">
+        <h2>Begin Your Adventure</h2>
+        <form id="setup-form">
+            <div>
+                <label for="player-name">Your Name:</label>
+                <input type="text" id="player-name" required>
+            </div>
+            <div>
+                <label for="character-class">Choose Your Class:</label>
+                <select id="character-class">
+                    <option value="Warrior">Warrior</option>
+                    <option value="Mage">Mage</option>
+                    <option value="Rogue">Rogue</option>
+                </select>
+            </div>
+            <button type="submit">Begin Journey</button>
+        </form>
+    </div>
+    
+    <div id="game-container" class="hidden">
+        <div id="health-container">
+            <div>Health: <span id="health-value">100</span>/100</div>
+            <div id="health-bar">
+                <div id="health-indicator" style="width: 100%;"></div>
+            </div>
+        </div>
+        
+        <div id="story-text"></div>
+        
+        <div id="choices-container"></div>
+        
+        <div class="controls">
+            <button id="save-btn">Save Game</button>
+            <button id="load-btn">Load Game</button>
+            <input type="text" id="save-id" placeholder="Save ID" class="hidden">
+            <button id="submit-load" class="hidden">Load</button>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const setupPanel = document.getElementById('setup-panel');
+            const gameContainer = document.getElementById('game-container');
+            const setupForm = document.getElementById('setup-form');
+            const storyText = document.getElementById('story-text');
+            const choicesContainer = document.getElementById('choices-container');
+            const healthValue = document.getElementById('health-value');
+            const healthIndicator = document.getElementById('health-indicator');
+            const saveBtn = document.getElementById('save-btn');
+            const loadBtn = document.getElementById('load-btn');
+            const saveIdInput = document.getElementById('save-id');
+            const submitLoadBtn = document.getElementById('submit-load');
+            
+            // Game history for scrollback
+            let gameHistory = [];
+            
+            setupForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const playerName = document.getElementById('player-name').value;
+                const characterClass = document.getElementById('character-class').value;
+                
+                fetch('/start', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        player_name: playerName,
+                        character_class: characterClass
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    setupPanel.classList.add('hidden');
+                    gameContainer.classList.remove('hidden');
+                    
+                    updateGameState(data);
+                });
+            });
+            
+            function updateGameState(data) {
+                // Add new story segment to history
+                gameHistory.push(data.message);
+                
+                // Display full story so far
+                storyText.textContent = gameHistory.join('\n\n');
+                
+                // Update health
+                updateHealth(data.health);
+                
+                // Clear existing choices
+                choicesContainer.innerHTML = '';
+                
+                // Add new choices
+                data.choices.forEach(choice => {
+                    const button = document.createElement('button');
+                    button.textContent = choice;
+                    button.addEventListener('click', () => makeChoice(choice));
+                    choicesContainer.appendChild(button);
+                });
+                
+                // Scroll to bottom of story text
+                storyText.scrollTop = storyText.scrollHeight;
+            }
+            
+            function makeChoice(choice) {
+                fetch('/action', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        action: choice
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    updateGameState(data);
+                });
+            }
+            
+            function updateHealth(health) {
+                healthValue.textContent = health;
+                const percentage = Math.max(0, health);
+                healthIndicator.style.width = `${percentage}%`;
+                
+                // Change color based on health value
+                if (health < 30) {
+                    healthIndicator.style.backgroundColor = '#ff3e3e';
+                } else if (health < 70) {
+                    healthIndicator.style.backgroundColor = '#ffa500';
+                } else {
+                    healthIndicator.style.backgroundColor = '#4caf50';
+                }
+            }
+            
+            saveBtn.addEventListener('click', function() {
+                fetch('/save', {
+                    method: 'POST'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        alert(`Game saved! Your save ID is: ${data.save_id}`);
+                    } else {
+                        alert('Error saving game: ' + data.message);
+                    }
+                });
+            });
+            
+            loadBtn.addEventListener('click', function() {
+                saveIdInput.classList.remove('hidden');
+                submitLoadBtn.classList.remove('hidden');
+            });
+            
+            submitLoadBtn.addEventListener('click', function() {
+                const saveId = saveIdInput.value;
+                
+                fetch('/load', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        save_id: saveId
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        alert('Game loaded successfully!');
+                        window.location.reload(); // Reload to update UI with loaded state
+                    } else {
+                        alert('Error loading game: ' + data.message);
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
