@@ -7,7 +7,7 @@ from transformers import pipeline
 
 # Choose which LLM implementation to use
 # Options: 'local', 'huggingface', 'ollama'
-LLM_IMPLEMENTATION = 'local'  # Change this based on your preference
+LLM_IMPLEMENTATION = 'ollama'  # Change this based on your preference
 
 class LLMInterface:
     """Interface for different LLM implementations"""
@@ -84,11 +84,25 @@ class OllamaLLM(LLMInterface):
             }
         }
         
+        full_response = ""
+        
         try:
-            response = requests.post(self.api_url, json=payload)
+            # Sending POST request to Ollama API
+            response = requests.post(self.api_url, json=payload, stream=True)  # Use stream to handle incremental responses
+            
             if response.status_code == 200:
-                result = response.json()
-                return result.get("response", "[No response generated]")
+                for line in response.iter_lines():
+                    if line:
+                        try:
+                            json_data = json.loads(line.decode('utf-8'))
+                            partial_response = json_data.get("response", "")
+                            full_response += partial_response
+                            # Check if the response is complete
+                            if json_data.get("done", False):
+                                break  # Stop if the response is complete
+                        except json.JSONDecodeError as e:
+                            print(f"Error decoding JSON: {e}")
+                return full_response or "[No response generated]"
             else:
                 print(f"Error: {response.status_code}, {response.text}")
                 return f"[Error generating text: {response.status_code}]"
